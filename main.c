@@ -237,6 +237,7 @@ static THD_FUNCTION(Thread1, arg)
   ui_init();
   //Initialize graph plotting
   plot_init();
+  systime_t sweep_start = chVTGetSystemTime(); // We add the sweep_start
   while (1) {
     bool completed = false;
     uint16_t mask = get_sweep_mask();
@@ -266,9 +267,18 @@ static THD_FUNCTION(Thread1, arg)
 #endif
 //      START_PROFILE
       if ((props_mode & DOMAIN_MODE) == DOMAIN_TIME) transform_domain(mask);
-//      STOP_PROFILE;
+      //      STOP_PROFILE;
       // Prepare draw graphics, cache all lines, mark screen cells for redraw
       request_to_redraw(REDRAW_PLOT);
+#ifdef __USE_AUTO_SAVE__
+      {                                                       
+        systime_t now     = chVTGetSystemTime();    //absolute time since boot         
+        uint32_t elapsed  = ST2MS(now - sweep_start);        
+        autosave_tick(elapsed);          // accumulate these small durations until the configured period is reached.                    
+        sweep_start = now;                                   
+      }                                                       
+#endif
+
     }
     request_to_redraw(REDRAW_BATTERY);
 #ifndef DEBUG_CONSOLE_SHOW
@@ -996,6 +1006,11 @@ static void load_settings(void) {
   } else
     caldata_recall(0);   // Try load 0 slot
   update_frequencies();
+
+#ifdef __USE_AUTO_SAVE__
+  autosave_init();   // ← Initialisation of module Auto Save
+#endif
+
 #ifdef __VNA_MEASURE_MODULE__
   plot_set_measure_mode(current_props._measure);
 #endif
