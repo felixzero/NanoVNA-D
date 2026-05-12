@@ -82,7 +82,7 @@ static bool _write_s2p(const char *basename)
   return true;
 }
 
-static bool _write_csv(const char *basename)
+/*static bool _write_csv(const char *basename)
 {
   FIL  fp;
   char path[AUTO_SAVE_FNAME_LEN + 8];
@@ -106,7 +106,7 @@ static bool _write_csv(const char *basename)
   }
   f_close(&fp);
   return true;
-}
+}*/
 
 //===========================================================================
 // PUBLIC API
@@ -170,7 +170,7 @@ void autosave_process_if_needed(void)
   bool ok = false;
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_S1P) ok |= _write_s1p(basename);
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_S2P) ok |= _write_s2p(basename);
-  if (AS_CFG.format_mask & AUTO_SAVE_FMT_CSV) ok |= _write_csv(basename);
+  //if (AS_CFG.format_mask & AUTO_SAVE_FMT_CSV) ok |= _write_csv(basename);
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_BMP) ok |= autosave_write_screenshot(basename);
 
   f_mount(NULL, "", 0);
@@ -288,7 +288,7 @@ void autosave_format_period(char *buf, uint32_t period_s)
 
 bool autosave_write_s1p(const char *b) { return _write_s1p(b); }
 bool autosave_write_s2p(const char *b) { return _write_s2p(b); }
-bool autosave_write_csv(const char *b) { return _write_csv(b); }
+//bool autosave_write_csv(const char *b) { return _write_csv(b); }
 
 #endif /* __USE_AUTO_SAVE__ */
 #endif /* __USE_SD_CARD__   */

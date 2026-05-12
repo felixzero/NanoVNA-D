@@ -37,7 +37,7 @@
 //===========================================================================
 #define AUTO_SAVE_FMT_S1P      (1 << 0)   // Touchstone 1-port  (.s1p)
 #define AUTO_SAVE_FMT_S2P      (1 << 1)   // Touchstone 2-port  (.s2p)
-#define AUTO_SAVE_FMT_CSV      (1 << 2)   // Tabulaire          (.csv)
+//#define AUTO_SAVE_FMT_CSV      (1 << 2)   // Tabulaire          (.csv)
 #define AUTO_SAVE_FMT_BMP      (1 << 3)   // Screenshot         (.bmp / .tif)
 #define AUTO_SAVE_FMT_DEFAULT  AUTO_SAVE_FMT_S1P
 
@@ -103,7 +103,7 @@ void autosave_build_filename(char *buf, size_t maxlen);
 // Returns true if f_open + f_printf + f_close were successful.
 bool autosave_write_s1p(const char *basename);
 bool autosave_write_s2p(const char *basename);
-bool autosave_write_csv(const char *basename);
+//bool autosave_write_csv(const char *basename);
 bool autosave_write_screenshot(const char *basename);
 
 // Converts a duration in seconds into a readable string for menu display.
