@@ -1915,7 +1915,7 @@ static uint16_t fixScreenshotFormat(uint16_t data) {
  
 void ui_autosave_screenshot(const char *path)
 {
-  // We capture directly, same mechanics as normal save_bmp.
+   // We capture directly, same mechanics as normal save_bmp.
   uint8_t fmt = fixScreenshotFormat(FMT_BMP_FILE);
 
   // Open the file using the FULL path (extension already included in path)
@@ -2050,7 +2050,7 @@ static const menuitem_t menu_autosave[] = {
   { MT_ADV_CALLBACK, 0,               "PERIOD\n---",     menu_autosave_period_acb },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S1P, "S1P",          menu_autosave_fmt_acb    },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S2P, "S2P",          menu_autosave_fmt_acb    },
-  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_CSV, "CSV",          menu_autosave_fmt_acb    },
+//  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_CSV, "CSV",          menu_autosave_fmt_acb    },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_BMP, "SCREEN",       menu_autosave_fmt_acb    },
 //  { MT_CALLBACK,     0,               "SAVE\nNOW",       menu_autosave_save_now_cb},
   { MT_NEXT, 0, NULL, menu_back }
