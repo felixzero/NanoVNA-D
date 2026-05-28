@@ -2010,6 +2010,25 @@ static UI_FUNCTION_ADV_CALLBACK(menu_autosave_toggle_acb) {
                 running ? "ON" : "OFF");
     return;
   }
+
+  // Checks performed only upon activation (OFF -> ON) 
+  if (autosave_get_state() != AS_STATE_RUNNING) {
+
+    // Check 1: No format selected
+    if (config.autosave.format_mask == 0) {
+      ui_message_box("AUTO SAVE", " No format\n selected", 2000);
+      return;
+    }    
+
+    // Check 2: no SD card
+    if (f_mount(fs_volume, "", 1) != FR_OK) {
+      ui_message_box("AUTO SAVE", "  No SD card\n  inserted", 2000);
+      return;
+    }
+    f_mount(NULL, "", 0); // Clean disassembly after verification
+
+  }
+
   autosave_toggle();
 }
 
@@ -3930,6 +3949,14 @@ void ui_process(void) {
   if (operation_requested&OP_TOUCH)
     ui_process_touch();
 
+#ifdef __USE_AUTO_SAVE__
+  if (autosave_get_state() == AS_STATE_RUNNING ||
+      autosave_get_state() == AS_STATE_SAVING)
+  {
+    request_to_redraw(REDRAW_AREA);
+  }
+#endif
+
   touch_start_watchdog();
   operation_requested = OP_NONE;
 }
@@ -3995,6 +4022,58 @@ static void init_EXT(void) {
   ext_channel_enable(3, EXT_CH_MODE_RISING_EDGE | EXT_MODE_GPIOA);
 }
 #endif
+
+#ifdef __USE_AUTO_SAVE__
+
+void ui_draw_autosave_indicator(void)
+{
+  autosave_state_t st = autosave_get_state();
+
+  // Bottom-left corner : declared here to be accessible everywhere
+  const int REC_X  = 20;
+  const int REC_Y  = LCD_HEIGHT - FONT_GET_HEIGHT - 15;
+  const int CIRC_R = 4;
+
+  // Erasure upon deactivation
+  static bool last_active = false;
+  bool active = (st == AS_STATE_RUNNING || st == AS_STATE_SAVING);
+  if (!active) {
+    if (last_active) {
+      request_to_redraw(REDRAW_AREA); // Neatly redraws the entire screen
+    }
+    last_active = false;
+    return;
+  }
+  last_active = true;
+
+  // Blink every 500 ms
+  bool blink_on = ((ST2MS(chVTGetSystemTime()) / 500U) & 1U);
+  if (!blink_on)
+    return;
+
+  // Draw "REC"
+  lcd_set_colors(RGB565(255,0,0), LCD_LOW_BAT_COLOR);
+  lcd_drawstring(REC_X, REC_Y, "REC");
+
+  // Circle position
+  int cx = REC_X + FONT_STR_WIDTH(3) + 6 + CIRC_R;
+  int cy = REC_Y + FONT_GET_HEIGHT / 2;
+
+  // Filled red circle
+  lcd_set_foreground(RGB565(255,0,0));
+
+  for (int dy = -CIRC_R; dy <= CIRC_R; dy++) {
+    int dx = 0;
+    int r2 = CIRC_R * CIRC_R - dy * dy;
+
+    while ((dx + 1)*(dx + 1) <= r2)
+      dx++;
+
+    lcd_fill(cx - dx, cy + dy, 2 * dx + 1, 1);
+  }
+}
+
+#endif /* __USE_AUTO_SAVE__ */ 
 
 void ui_init() {
   adc_init();
