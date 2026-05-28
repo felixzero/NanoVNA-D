@@ -1749,6 +1749,11 @@ void draw_all(void) {
     draw_cal_status();
   if (redraw_request & REDRAW_BATTERY)
     draw_battery_status();
+
+/*#ifdef __USE_AUTO_SAVE__
+  ui_draw_autosave_indicator();
+#endif    */
+  ui_draw_autosave_indicator();
   redraw_request = 0;
 }
 

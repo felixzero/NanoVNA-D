@@ -288,7 +288,10 @@ static THD_FUNCTION(Thread1, arg)
 #ifdef __USE_AUTO_SAVE__
     // Called after draw_all(): screen drawn, SPI LCD free, sweep completed.
     autosave_process_if_needed();
+    ui_draw_autosave_indicator();
 #endif
+
+
   }
 }
 
