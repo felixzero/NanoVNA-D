@@ -4024,56 +4024,57 @@ static void init_EXT(void) {
 #endif
 
 #ifdef __USE_AUTO_SAVE__
-
 void ui_draw_autosave_indicator(void)
 {
   autosave_state_t st = autosave_get_state();
 
-  // Bottom-left corner : declared here to be accessible everywhere
-  const int REC_X  = 20;
-  const int REC_Y  = LCD_HEIGHT - FONT_GET_HEIGHT - 15;
+  const int REC_X  = 22;
+  const int REC_Y  = LCD_HEIGHT - FONT_GET_HEIGHT - 17;
   const int CIRC_R = 4;
 
-  // Erasure upon deactivation
   static bool last_active = false;
   bool active = (st == AS_STATE_RUNNING || st == AS_STATE_SAVING);
   if (!active) {
-    if (last_active) {
-      request_to_redraw(REDRAW_AREA); // Neatly redraws the entire screen
-    }
+    if (last_active)
+      request_to_redraw(REDRAW_AREA);
+     
     last_active = false;
     return;
   }
   last_active = true;
 
-  // Blink every 500 ms
-  bool blink_on = ((ST2MS(chVTGetSystemTime()) / 500U) & 1U);
-  if (!blink_on)
-    return;
+  // Detecting a new save via save_count
+  static uint32_t  last_save_count = 0;
+  static systime_t last_save_time  = 0;
 
-  // Draw "REC"
-  lcd_set_colors(RGB565(255,0,0), LCD_LOW_BAT_COLOR);
+  if (autosave_rt.save_count != last_save_count) {
+    last_save_count = autosave_rt.save_count;
+    last_save_time  = chVTGetSystemTime();   // memorizes the save time
+  }
+
+  // Circle visible for 1 second after the last save
+  bool show_circle = (ST2MS(chVTGetSystemTime() - last_save_time) < 1000U);
+
+  // "REC" toujours affiché quand autosave est actif
+  lcd_set_colors(RGB565(255, 0, 0), LCD_LOW_BAT_COLOR);
   lcd_drawstring(REC_X, REC_Y, "REC");
 
-  // Circle position
+  if (!show_circle)
+    return;
+
+  // Red circle
   int cx = REC_X + FONT_STR_WIDTH(3) + 6 + CIRC_R;
   int cy = REC_Y + FONT_GET_HEIGHT / 2;
-
-  // Filled red circle
-  lcd_set_foreground(RGB565(255,0,0));
-
+  lcd_set_foreground(RGB565(255, 0, 0));
   for (int dy = -CIRC_R; dy <= CIRC_R; dy++) {
     int dx = 0;
     int r2 = CIRC_R * CIRC_R - dy * dy;
-
     while ((dx + 1)*(dx + 1) <= r2)
       dx++;
-
     lcd_fill(cx - dx, cy + dy, 2 * dx + 1, 1);
   }
 }
-
-#endif /* __USE_AUTO_SAVE__ */ 
+#endif /* __USE_AUTO_SAVE__ */
 
 void ui_init() {
   adc_init();

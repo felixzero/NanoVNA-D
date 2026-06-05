@@ -1748,13 +1748,13 @@ void draw_all(void) {
   if (redraw_request & REDRAW_CAL_STATUS)
     draw_cal_status();
   if (redraw_request & REDRAW_BATTERY)
-    draw_battery_status();
+    draw_battery_status();  
 
-/*#ifdef __USE_AUTO_SAVE__
-  ui_draw_autosave_indicator();
-#endif    */
-  ui_draw_autosave_indicator();
   redraw_request = 0;
+
+  #ifdef __USE_AUTO_SAVE__
+  ui_draw_autosave_indicator();
+  #endif  
 }
 
 //**************************************************************************************
