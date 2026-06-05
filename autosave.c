@@ -47,38 +47,38 @@ static volatile bool autosave_pending = false;
 
 static bool _write_s1p(const char *basename)
 {
-  FIL  fp;
+  //FIL  fp;
   char path[AUTO_SAVE_FNAME_LEN + 8];
   plot_printf(path, sizeof(path), "%s.s1p", basename);
-  if (f_open(&fp, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
-  AS_FPRINTF(&fp, "! NanoVNA-H4 AutoSave\r\n");
-  AS_FPRINTF(&fp, "# Hz S RI R 50\r\n");
+  if (f_open(fs_file, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
+  AS_FPRINTF(fs_file, "! NanoVNA-H4 AutoSave\r\n");
+  AS_FPRINTF(fs_file, "# Hz S RI R 50\r\n");
   for (uint16_t i = 0; i < sweep_points; i++) {
-    AS_FPRINTF(&fp, "%u %.10f %.10f\r\n",
+    AS_FPRINTF(fs_file, "%u %.10f %.10f\r\n",
                (unsigned)getFrequency(i),
                measured[0][i][0], measured[0][i][1]);
   }
-  f_close(&fp);
+  f_close(fs_file);
   return true;
 }
 
 static bool _write_s2p(const char *basename)
 {
-  FIL  fp;
+  //FIL  fp;
   char path[AUTO_SAVE_FNAME_LEN + 8];
   plot_printf(path, sizeof(path), "%s.s2p", basename);
-  if (f_open(&fp, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
-  AS_FPRINTF(&fp, "! NanoVNA-H4 AutoSave\r\n");
-  AS_FPRINTF(&fp, "# Hz S RI R 50\r\n");
+  if (f_open(fs_file, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
+  AS_FPRINTF(fs_file, "! NanoVNA-H4 AutoSave\r\n");
+  AS_FPRINTF(fs_file, "# Hz S RI R 50\r\n");
   for (uint16_t i = 0; i < sweep_points; i++) {
     float s11re = measured[0][i][0], s11im = measured[0][i][1];
     float s21re = measured[1][i][0], s21im = measured[1][i][1];
-    AS_FPRINTF(&fp, "%u %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\r\n",
+    AS_FPRINTF(fs_file, "%u %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\r\n",
                (unsigned)getFrequency(i),
                s11re, s11im, s21re, s21im,
                s21re, s21im, s11re, s11im);
   }
-  f_close(&fp);
+  f_close(fs_file);
   return true;
 }
 

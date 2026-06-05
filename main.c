@@ -72,7 +72,7 @@ static volatile vna_shellcmd_t  shell_function = 0;
 #define ENABLE_COLOR_COMMAND
 // Enable transform command
 #define ENABLE_TRANSFORM_COMMAND
-// Enable sample commandvoid ui_autosave_screenshot(const char *path);
+// Enable sample command
 //#define ENABLE_SAMPLE_COMMAND
 // Enable I2C command for send data to AIC3204, used for debug
 //#define ENABLE_I2C_COMMAND
@@ -288,7 +288,7 @@ static THD_FUNCTION(Thread1, arg)
 #ifdef __USE_AUTO_SAVE__
     // Called after draw_all(): screen drawn, SPI LCD free, sweep completed.
     autosave_process_if_needed();
-    ui_draw_autosave_indicator();
+    //ui_draw_autosave_indicator();
 #endif
 
 
