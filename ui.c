@@ -140,6 +140,9 @@ enum {
 #ifdef __SD_CARD_DUMP_FIRMWARE__
   KM_BIN_NAME,
 #endif
+#ifdef __USE_AUTO_SAVE__
+  KM_AUTOSAVE_PERIOD,   // We added KM_AUTOSAVE_PERIOD
+#endif
 #endif
   KM_NONE
 };
@@ -1447,6 +1450,14 @@ static const char s2_file_header[] =
 static const char s2_file_param[] =
   "%u % f % f % f % f 0 0 0 0\r\n";
 
+#if 0 
+static const char *const menu_autosave_unit_names[] = {
+  "s",      /* secondes */
+  "min",    /* minutes  */
+  "h",      /* hours   */
+};
+#endif
+
 static FILE_SAVE_CALLBACK(save_snp) {
   const char *s_file_format;
   char *buf_8 = (char *)spi_buffer;
@@ -1900,6 +1911,22 @@ static uint16_t fixScreenshotFormat(uint16_t data) {
   return data;
 }
 
+#ifdef __USE_AUTO_SAVE__
+ 
+void ui_autosave_screenshot(const char *path)
+{
+   // We capture directly, same mechanics as normal save_bmp.
+  uint8_t fmt = fixScreenshotFormat(FMT_BMP_FILE);
+
+  // Open the file using the FULL path (extension already included in path)
+  if (f_open(fs_file, path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE) != FR_OK) return;
+
+  // Calls the backup function directly
+  file_opt[fmt].save(fs_file, fmt);
+  f_close(fs_file);
+}
+#endif
+
 #ifdef __SD_FILE_BROWSER__
 #include "vna_modules/vna_browser.c"
 
@@ -1970,6 +1997,85 @@ static const menuitem_t menu_sdcard_browse[] = {
 };
 #endif
 
+#ifdef __USE_AUTO_SAVE__
+#include "autosave.h"
+
+// ── Button ON/OFF ──────────────────────────────────────────────────────────
+static UI_FUNCTION_ADV_CALLBACK(menu_autosave_toggle_acb) {
+  (void)data;
+  if (b) {
+    bool running = (autosave_get_state() == AS_STATE_RUNNING);
+    if (running) b->icon = BUTTON_ICON_CHECK;
+    plot_printf(b->label, sizeof(b->label), "AUTO SAVE\n%s",
+                running ? "ON" : "OFF");
+    return;
+  }
+
+  // Checks performed only upon activation (OFF -> ON) 
+  if (autosave_get_state() != AS_STATE_RUNNING) {
+
+    // Check 1: No format selected
+    if (config.autosave.format_mask == 0) {
+      ui_message_box("AUTO SAVE", " No format\n selected", 2000);
+      return;
+    }    
+
+    // Check 2: no SD card
+    if (f_mount(fs_volume, "", 1) != FR_OK) {
+      ui_message_box("AUTO SAVE", "  No SD card\n  inserted", 2000);
+      return;
+    }
+    f_mount(NULL, "", 0); // Clean disassembly after verification
+
+  }
+
+  autosave_toggle();
+}
+
+// ── Period Button ─────────────────────────────────────────────────────────
+static UI_FUNCTION_ADV_CALLBACK(menu_autosave_period_acb) {
+  (void)data;
+  if (b) {
+    char period_str[12];
+    uint32_t p = config.autosave.period_s;
+    if (p < AUTO_SAVE_PERIOD_MIN_S) p = AUTO_SAVE_PERIOD_DEFAULT;
+    autosave_format_period(period_str, p);
+    plot_printf(b->label, sizeof(b->label), "PERIOD\n%s", period_str);
+    return;
+  }
+  ui_mode_keypad(KM_AUTOSAVE_PERIOD);
+}
+
+// ── Format button (generic) ──────────────────────────────────────────────
+static UI_FUNCTION_ADV_CALLBACK(menu_autosave_fmt_acb) {
+  if (b) {
+    bool active = (config.autosave.format_mask & data) != 0;
+    if (active) b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
+  config.autosave.format_mask ^= (uint8_t)data;
+  config_save();
+}
+
+/*// ── Callback "Save Now" ────────────────────────────────────────────────────
+static void menu_autosave_save_now_cb(uint16_t data) {
+  (void)data;
+  autosave_save_now();
+}*/
+
+// ── Submenu Auto Save ────────────────────────────────────────────────────
+static const menuitem_t menu_autosave[] = {
+  { MT_ADV_CALLBACK, 0,               "AUTO SAVE\nOFF",  menu_autosave_toggle_acb },
+  { MT_ADV_CALLBACK, 0,               "PERIOD\n---",     menu_autosave_period_acb },
+  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S1P, "S1P",          menu_autosave_fmt_acb    },
+  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S2P, "S2P",          menu_autosave_fmt_acb    },
+//  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_CSV, "CSV",          menu_autosave_fmt_acb    },
+  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_BMP, "SCREEN",       menu_autosave_fmt_acb    },
+//  { MT_CALLBACK,     0,               "SAVE\nNOW",       menu_autosave_save_now_cb},
+  { MT_NEXT, 0, NULL, menu_back }
+};
+#endif /* __USE_AUTO_SAVE__ */
+
 static const menuitem_t menu_sdcard[] = {
 #ifdef __SD_FILE_BROWSER__
   { MT_SUBMENU,              0, "LOAD",       menu_sdcard_browse },
@@ -1979,6 +2085,9 @@ static const menuitem_t menu_sdcard[] = {
   { MT_CALLBACK, FMT_BMP_FILE, "SCREENSHOT", menu_sdcard_cb },
   { MT_CALLBACK, FMT_CAL_FILE, "SAVE\nCALIBRATION", menu_sdcard_cb },
   { MT_ADV_CALLBACK, VNA_MODE_AUTO_NAME, "AUTO NAME", menu_vna_mode_acb},
+#ifdef __USE_AUTO_SAVE__
+  { MT_SUBMENU,     0,             "AUTO SAVE", menu_autosave }, // added 
+#endif  
 #ifdef __SD_CARD_DUMP_TIFF__
   { MT_ADV_CALLBACK, VNA_MODE_TIFF, "IMAGE FORMAT\n " R_LINK_COLOR "%s", menu_vna_mode_acb },
 #endif
@@ -2792,12 +2901,13 @@ static void ui_menu_touch(int touch_x, int touch_y) {
 //=====================================================================================================
 //                                      KEYBOARD functions
 //=====================================================================================================
-enum {NUM_KEYBOARD, TXT_KEYBOARD};
+enum {NUM_KEYBOARD, TXT_KEYBOARD, PERIOD_KEYBOARD};
 
 // Keyboard size and position data
 static const keypad_pos_t key_pos[] = {
-  [NUM_KEYBOARD] = {KP_X_OFFSET, KP_Y_OFFSET, KP_WIDTH, KP_HEIGHT},
-  [TXT_KEYBOARD] = {KPF_X_OFFSET, KPF_Y_OFFSET, KPF_WIDTH, KPF_HEIGHT}
+  [NUM_KEYBOARD]    = {KP_X_OFFSET,  KP_Y_OFFSET,  KP_WIDTH,  KP_HEIGHT},
+  [PERIOD_KEYBOARD] = {KP_X_OFFSET,  KP_Y_OFFSET,  KP_WIDTH,  KP_HEIGHT},
+  [TXT_KEYBOARD]    = {KPF_X_OFFSET, KPF_Y_OFFSET, KPF_WIDTH, KPF_HEIGHT}
 };
 
 static const keypads_t keypads_freq[] = {
@@ -2940,6 +3050,32 @@ static const keypads_t keypads_nfloat[] = {
   { 0x23, KP_BS }
 };
 
+// ── Keypad for period Auto Save ─────────────────────────────────────────
+// Disposition 4x4 :
+//   7  8  9  [G→h   ]
+//   4  5  6  [m→min ]
+//   1  2  3  [X1→s  ]
+//   0  .  BS [empty  ]
+static const keypads_t keypads_period[] = {
+  { 16, PERIOD_KEYBOARD },   // 16 buttons, type PERIOD
+  { 0x13, KP_PERIOD },
+  { 0x03, KP_0 },
+  { 0x02, KP_1 },
+  { 0x12, KP_2 },
+  { 0x22, KP_3 },
+  { 0x01, KP_4 },
+  { 0x11, KP_5 },
+  { 0x21, KP_6 },
+  { 0x00, KP_7 },
+  { 0x10, KP_8 },
+  { 0x20, KP_9 },
+  { 0x30, KP_G  },   // displays "G" → means "hours"
+  { 0x31, KP_m  },   // displays "m" → means "minutes"
+  { 0x32, KP_X1 },   // displays "x1" → means "seconds"
+  { 0x23, KP_BS },
+  { 0x33, KP_EMPTY },
+};
+
 #if 0
 //  ABCD keyboard
 static const keypads_t keypads_text[] = {
@@ -2960,7 +3096,7 @@ static const keypads_t keypads_text[] = {
 };
 #endif
 
-enum {KEYPAD_FREQ, KEYPAD_UFLOAT, KEYPAD_PERCENT, KEYPAD_FLOAT, KEYPAD_MFLOAT, KEYPAD_MKUFLOAT, KEYPAD_NFLOAT, KEYPAD_TEXT};
+enum {KEYPAD_FREQ, KEYPAD_UFLOAT, KEYPAD_PERCENT, KEYPAD_FLOAT, KEYPAD_MFLOAT, KEYPAD_MKUFLOAT, KEYPAD_NFLOAT, KEYPAD_TEXT, KEYPAD_PERIOD}; // we add "PERIOD_KEYBOARD"
 static const keypads_t *keypad_type_list[] = {
   [KEYPAD_FREQ]     = keypads_freq,    // frequency input
   [KEYPAD_UFLOAT]   = keypads_ufloat,  // unsigned float input
@@ -2969,7 +3105,8 @@ static const keypads_t *keypad_type_list[] = {
   [KEYPAD_MFLOAT]   = keypads_mfloat,  //   signed milli/micro float input
   [KEYPAD_MKUFLOAT] = keypads_mkufloat,// unsigned milli/kilo float input
   [KEYPAD_NFLOAT]   = keypads_nfloat,  //   signed micro/nano/pico float input
-  [KEYPAD_TEXT]     = keypads_text     // text input
+  [KEYPAD_TEXT]     = keypads_text,     // text input
+  [KEYPAD_PERIOD]   = keypads_period // period
 };
 
 // Get value from keyboard functions
@@ -3166,6 +3303,19 @@ UI_KEYBOARD_CALLBACK(input_filename) {
 }
 #endif
 
+#ifdef __USE_AUTO_SAVE__
+UI_KEYBOARD_CALLBACK(input_autosave_period) {
+  (void)data;
+  if (b) {b->p1.u = config.autosave.period_s; return;}
+  uint32_t val = keyboard_get_uint();
+  if (val < AUTO_SAVE_PERIOD_MIN_S) val = AUTO_SAVE_PERIOD_MIN_S;
+  if (val > AUTO_SAVE_PERIOD_MAX_S) val = AUTO_SAVE_PERIOD_MAX_S;
+  config.autosave.period_s = val;
+  autosave_rt.counter_s    = 0;
+  config_save();
+}
+#endif
+
 const keypads_list keypads_mode_tbl[KM_NONE] = {
 //                      key format     data for cb    text at bottom        callback function
 [KM_START]           = {KEYPAD_FREQ,   ST_START,      "START",              input_freq     }, // start
@@ -3187,6 +3337,8 @@ const keypads_list keypads_mode_tbl[KM_NONE] = {
 [KM_VAR_DELAY]       = {KEYPAD_NFLOAT, 0,             "JOG STEP",           input_var_delay}, // VAR electrical delay
 [KM_S21OFFSET]       = {KEYPAD_FLOAT,  0,             "S21 OFFSET",         input_s21_offset},// S21 level offset
 [KM_VELOCITY_FACTOR] = {KEYPAD_PERCENT,0,             "VELOCITY%%",         input_velocity }, // velocity factor
+//[KM_AUTOSAVE_PERIOD] = {KEYPAD_PERIOD, 0,             "PERIOD\ns=sec  m=min  h=hour",       input_autosave_period}, //Auto Save Period
+
 #ifdef __S11_CABLE_MEASURE__
 [KM_ACTUAL_CABLE_LEN]= {KEYPAD_MKUFLOAT,0,            "CABLE LENGTH",       input_cable_len}, // real cable length input for VF calculation
 #endif
@@ -3216,6 +3368,9 @@ const keypads_list keypads_mode_tbl[KM_NONE] = {
 #ifdef __SD_CARD_DUMP_FIRMWARE__
 [KM_BIN_NAME]        = {KEYPAD_TEXT,   FMT_BIN_FILE,  "BIN",                input_filename }, // bin filename
 #endif
+#ifdef __USE_AUTO_SAVE__
+[KM_AUTOSAVE_PERIOD] = {KEYPAD_PERIOD,  0,            "PERIOD\ns=sec  m=min  h=hour",  input_autosave_period}, //autosave period
+#endif
 #endif
 };
 
@@ -3237,14 +3392,33 @@ static void keypad_draw_button(int id) {
     button.bg = LCD_MENU_COLOR;
     button.border = KEYBOARD_BUTTON_BORDER|BUTTON_BORDER_RISE;
   }
-
+  //if (keypads->type >= PERIOD_KEYBOARD) return;
   const keypad_pos_t *p = &key_pos[keypads->type];
   int x = p->x_offs + (keypads->buttons[id].pos>> 4) * p->width;
   int y = p->y_offs + (keypads->buttons[id].pos&0xF) * p->height;
   ui_draw_button(x, y, p->width, p->height, &button);
   uint8_t ch = keypads->buttons[id].c;
   if (ch == KP_EMPTY) return;
-  if (keypads->type == NUM_KEYBOARD) {
+  if (keypads->type == PERIOD_KEYBOARD) {
+    // Buttons unity : we draw 's', 'm', 'h' in text
+    char unit = 0;
+    if      (ch == KP_X1) unit = 's';
+    else if (ch == KP_m)  unit = 'm';
+    else if (ch == KP_G)  unit = 'h';
+
+    if (unit) {
+      // Centered drawing of the unit character, size ×2
+      lcd_drawchar_size(unit,
+                        x + (KP_WIDTH  - FONT_WIDTH  * 2) / 2,
+                        y + (KP_HEIGHT - FONT_GET_HEIGHT * 2) / 2,
+                        2);
+    } else {
+      // Numbers 0-9, period, BS: same pattern as NUM_KEYBOARD
+      lcd_drawfont(ch,
+                   x + (KP_WIDTH  - NUM_FONT_GET_WIDTH)  / 2,
+                   y + (KP_HEIGHT - NUM_FONT_GET_HEIGHT) / 2);
+    }
+  } else if (keypads->type == NUM_KEYBOARD) {
     lcd_drawfont(ch,
                      x + (KP_WIDTH - NUM_FONT_GET_WIDTH) / 2,
                      y + (KP_HEIGHT - NUM_FONT_GET_HEIGHT) / 2);
@@ -3255,8 +3429,8 @@ static void keypad_draw_button(int id) {
                      y + (KPF_HEIGHT - FONT_GET_HEIGHT) / 2);
 #else
     lcd_drawchar_size(ch,
-                     x + KPF_WIDTH/2 - FONT_WIDTH + 1,
-                     y + KPF_HEIGHT/2 - FONT_GET_HEIGHT, 2);
+                          x + KPF_WIDTH/2 - FONT_WIDTH + 1,
+                          y + KPF_HEIGHT/2 - FONT_GET_HEIGHT, 2);
 #endif
   }
 }
@@ -3344,6 +3518,7 @@ static int num_keypad_click(int c, int kp_index) {
     }
     return K_DONE;
   }
+
 #ifdef __USE_RTC__
   int maxlength = (1<<keypad_mode)&((1<<KM_RTC_DATE)|(1<<KM_RTC_TIME)) ? 6 : NUMINPUT_LEN;
 #else
@@ -3383,6 +3558,44 @@ static int txt_keypad_click(int c, int kp_index) {
   return K_CONTINUE;
 }
 
+
+// Keyboard click handling period
+// KP_X1 → valid in seconds (raw value)
+// KP_m → valid in minutes (value × 60)
+// KP_G → valid in hours (value × 3600)
+static int period_keypad_click(int c, int kp_index) {
+  // Delete key
+  if (c == KP_BS) {
+    if (kp_index == 0) return K_CANCEL;
+    kp_buf[--kp_index] = '\0';
+    draw_numeric_input(kp_buf);
+    return K_CONTINUE;
+  }
+  // Unit keys → confirmation with conversion
+  if (c == KP_X1 || c == KP_m || c == KP_G) {
+    if (kp_index == 0) return K_CANCEL;
+    uint32_t val = my_atoui(kp_buf);
+    if      (c == KP_m) val *= 60U;      // minutes → seconds
+    else if (c == KP_G) val *= 3600U;    // hours  → seconds
+    // Clamp in the terminals
+    if (val < AUTO_SAVE_PERIOD_MIN_S) val = AUTO_SAVE_PERIOD_MIN_S;
+    if (val > AUTO_SAVE_PERIOD_MAX_S) val = AUTO_SAVE_PERIOD_MAX_S;
+    // Rewrite kp_buf with the value in seconds so that the callback can read it
+    plot_printf(kp_buf, sizeof(kp_buf), "%u", (unsigned)val);
+    return K_DONE;
+  }
+  // Numeric keys (0-9 and period)
+  if (kp_index < NUMINPUT_LEN) {
+    if (c <= KP_9)
+      kp_buf[kp_index++] = '0' + c;
+    else if (c == KP_PERIOD && period_pos() == kp_index)
+      kp_buf[kp_index++] = '.';
+  }
+  kp_buf[kp_index] = '\0';
+  draw_numeric_input(kp_buf);
+  return K_CONTINUE;
+}
+
 static void ui_mode_keypad(int mode) {
   if (ui_mode == UI_KEYPAD)
     return;
@@ -3398,11 +3611,39 @@ static void ui_mode_keypad(int mode) {
   draw_numeric_area_frame();
 }
 
-static void keypad_click(int key) {
+/*static void keypad_click(int key) {
   int c = keypads->buttons[key].c;  // !!! Use key + 1 (zero key index used or size define)
   int index = strlen(kp_buf);
   int result = keypads->type == NUM_KEYBOARD ? num_keypad_click(c, index) : txt_keypad_click(c, index);
   if (result == K_DONE) ui_keyboard_cb(keypad_mode, NULL); // apply input done
+  // Exit loop on done or cancel
+  if (result != K_CONTINUE)
+    ui_mode_normal();
+}*/
+
+//We connect PERIOD_KEYBOARD to keypad_click
+static void keypad_click(int key) {
+  int c = keypads->buttons[key].c; // !!! Use key + 1 (zero key index used or size define)
+  int index = strlen(kp_buf);
+
+  int result;
+
+  switch (keypads->type) {
+    case PERIOD_KEYBOARD:
+      result = period_keypad_click(c, index);
+      break;
+
+    case NUM_KEYBOARD:
+      result = num_keypad_click(c, index);
+      break;
+
+    default:
+      result = txt_keypad_click(c, index);
+      break;
+  }
+
+  if (result == K_DONE)
+    ui_keyboard_cb(keypad_mode, NULL); // apply input done
   // Exit loop on done or cancel
   if (result != K_CONTINUE)
     ui_mode_normal();
@@ -3708,6 +3949,14 @@ void ui_process(void) {
   if (operation_requested&OP_TOUCH)
     ui_process_touch();
 
+#ifdef __USE_AUTO_SAVE__
+  if (autosave_get_state() == AS_STATE_RUNNING ||
+      autosave_get_state() == AS_STATE_SAVING)
+  {
+    request_to_redraw(REDRAW_AREA);
+  }
+#endif
+
   touch_start_watchdog();
   operation_requested = OP_NONE;
 }
@@ -3773,6 +4022,59 @@ static void init_EXT(void) {
   ext_channel_enable(3, EXT_CH_MODE_RISING_EDGE | EXT_MODE_GPIOA);
 }
 #endif
+
+#ifdef __USE_AUTO_SAVE__
+void ui_draw_autosave_indicator(void)
+{
+  autosave_state_t st = autosave_get_state();
+
+  const int REC_X  = 22;
+  const int REC_Y  = LCD_HEIGHT - FONT_GET_HEIGHT - 17;
+  const int CIRC_R = 4;
+
+  static bool last_active = false;
+  bool active = (st == AS_STATE_RUNNING || st == AS_STATE_SAVING);
+  if (!active) {
+    if (last_active)
+      request_to_redraw(REDRAW_AREA);
+     
+    last_active = false;
+    return;
+  }
+  last_active = true;
+
+  // Detecting a new save via save_count
+  static uint32_t  last_save_count = 0;
+  static systime_t last_save_time  = 0;
+
+  if (autosave_rt.save_count != last_save_count) {
+    last_save_count = autosave_rt.save_count;
+    last_save_time  = chVTGetSystemTime();   // memorizes the save time
+  }
+
+  // Circle visible for 1 second after the last save
+  bool show_circle = (ST2MS(chVTGetSystemTime() - last_save_time) < 1000U);
+
+  // "REC" toujours affiché quand autosave est actif
+  lcd_set_colors(RGB565(255, 0, 0), LCD_LOW_BAT_COLOR);
+  lcd_drawstring(REC_X, REC_Y, "REC");
+
+  if (!show_circle)
+    return;
+
+  // Red circle
+  int cx = REC_X + FONT_STR_WIDTH(3) + 6 + CIRC_R;
+  int cy = REC_Y + FONT_GET_HEIGHT / 2;
+  lcd_set_foreground(RGB565(255, 0, 0));
+  for (int dy = -CIRC_R; dy <= CIRC_R; dy++) {
+    int dx = 0;
+    int r2 = CIRC_R * CIRC_R - dy * dy;
+    while ((dx + 1)*(dx + 1) <= r2)
+      dx++;
+    lcd_fill(cx - dx, cy + dy, 2 * dx + 1, 1);
+  }
+}
+#endif /* __USE_AUTO_SAVE__ */
 
 void ui_init() {
   adc_init();

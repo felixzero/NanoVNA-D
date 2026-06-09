@@ -992,6 +992,10 @@ typedef struct marker {
   freq_t   frequency;
 } marker_t;
 
+#ifdef __USE_SD_CARD__
+#include "autosave.h"
+#endif
+
 typedef struct config {
   uint32_t magic;
   uint32_t _harmonic_freq_threshold;
@@ -1009,6 +1013,7 @@ typedef struct config {
   float    _measure_r;
   uint8_t  _band_mode;
   uint8_t  _reserved[3];
+  autosave_config_t autosave; // Auto Save configuration (8 bytes, aligned)
   uint32_t checksum;
 } config_t;
 
@@ -1209,6 +1214,7 @@ enum {
   LCD_DISABLE_CAL_COLOR,  // Calibration state on disable color
   LCD_LINK_COLOR,         // UI menu button text for values color
   LCD_TXT_SHADOW_COLOR,   // Plot area text border color
+  LCD_REC_INDICATOR,      // REC Indicator
 };
 
 #define LCD_DEFAULT_PALETTE {\
@@ -1219,7 +1225,7 @@ enum {
 [LCD_MENU_TEXT_COLOR  ] = RGB565(  0,  0,  0), \
 [LCD_MENU_ACTIVE_COLOR] = RGB565(210,210,210), \
 [LCD_TRACE_1_COLOR    ] = RGB565(255,255,  0), \
-[LCD_TRACE_2_COLOR    ] = RGB565(  0,255,255), \
+[LCD_TRACE_2_COLOR    ] = RGB565(0,  255,255), \
 [LCD_TRACE_3_COLOR    ] = RGB565(  0,255,  0), \
 [LCD_TRACE_4_COLOR    ] = RGB565(255,  0,255), \
 [LCD_TRACE_5_COLOR    ] = RGB565(255,  0,  0), \
@@ -1239,6 +1245,7 @@ enum {
 [LCD_DISABLE_CAL_COLOR] = RGB565(255,  0,  0), \
 [LCD_LINK_COLOR       ] = RGB565(  0,  0,192), \
 [LCD_TXT_SHADOW_COLOR ] = RGB565(  0,  0,  0), \
+[LCD_REC_INDICATOR]     = RGB565(255,  0,  0), \
 }
 
 #define GET_PALTETTE_COLOR(idx)  config._lcd_palette[idx]
@@ -1411,6 +1418,10 @@ void ui_touch_draw_test(void);
 void ui_enter_dfu(void);
 
 void ui_message_box(const char *header, const char *text, uint32_t delay);
+
+#ifdef __USE_AUTO_SAVE__
+void ui_draw_autosave_indicator(void);
+#endif
 
 // Irq operation process set
 #define OP_NONE       0x00
