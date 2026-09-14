@@ -23,10 +23,11 @@
 #include "hal.h"
 #include "chprintf.h"
 #include "nanovna.h"
+#include "trace_analysis.h"
 
 static uint16_t redraw_request = 0; // contains REDRAW_XXX flags
 
-static uint16_t area_width  = AREA_WIDTH_NORMAL;
+uint16_t area_width  = AREA_WIDTH_NORMAL;
 static uint16_t area_height = AREA_HEIGHT_NORMAL;
 
 // Cell render use spi buffer
@@ -1164,6 +1165,10 @@ static void trace_into_index(int t) {
         else if (y > HEIGHT) y = HEIGHT;
       }
       mark_set_index(index, i, (uint16_t)(x>>16), y);
+
+#ifdef __USE_TRACE_ANALYSIS__
+      analysis_update_point(t, (uint16_t)i, (int16_t)y);  // Analyse min/max
+#endif
     }
     return;
   }
@@ -1453,7 +1458,53 @@ static void draw_cell(int x0, int y0) {
     cell_polar_grid(x0, y0, w, h, c);
 #endif
 
-  // Draw traces
+#ifdef __USE_TRACE_ANALYSIS__
+  // Draw Analysis traces
+  if (g_analysis.active && g_analysis.initialized) {
+
+    if (g_analysis.show_flags & ANALYSIS_SHOW_MIN) {
+
+      pixel_t c = GET_PALETTE_COLOR(LCD_TRACE_5_COLOR);
+
+      for (int i = 1; i < sweep_points; i++) {
+
+          if (!g_analysis.valid[i-1] ||
+              !g_analysis.valid[i])
+              continue;
+
+          int x1 = trace_index[g_analysis.trace_index][i-1].x - x0;
+          int y1 = g_analysis.min_y[i-1] - y0;
+
+          int x2 = trace_index[g_analysis.trace_index][i].x - x0;
+          int y2 = g_analysis.min_y[i] - y0;
+
+          cell_drawline(x1, y1, x2, y2, c);
+      }
+    }
+
+    if (g_analysis.show_flags & ANALYSIS_SHOW_MAX) {
+
+        pixel_t c = GET_PALETTE_COLOR(LCD_TRACE_6_COLOR);
+
+        for (int i = 1; i < sweep_points; i++) {
+
+            if (!g_analysis.valid[i-1] ||
+                !g_analysis.valid[i])
+                continue;
+
+            int x1 = trace_index[g_analysis.trace_index][i-1].x - x0;
+            int y1 = g_analysis.max_y[i-1] - y0;
+
+            int x2 = trace_index[g_analysis.trace_index][i].x - x0;
+            int y2 = g_analysis.max_y[i] - y0;
+
+            cell_drawline(x1, y1, x2, y2, c);
+        }
+    }
+  }
+#endif
+
+    // Draw traces
   for (t = TRACE_INDEX_COUNT-1; t >=0; t--) {
     int i0 = 0, i1 = getTracesPoints(t); // Get points count in trace t
     if (i1 == 0) continue;

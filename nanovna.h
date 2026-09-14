@@ -271,7 +271,7 @@ typedef uint32_t freq_t;
 #define POINTS_SET             {51, SWEEP_POINTS_MAX}
 #define POINTS_COUNT_DEFAULT   SWEEP_POINTS_MAX
 #endif
-
+extern uint16_t area_width;
 extern float measured[2][SWEEP_POINTS_MAX][2];
 
 #define CAL_TYPE_COUNT  5
@@ -484,6 +484,11 @@ void tlv320aic3204_write_reg(uint8_t page, uint8_t reg, uint8_t data);
  * vna_math.c
  */
 #include "vna_math.h"
+
+/*
+ * trace_analysis.h
+ */
+#include "trace_analysis.h"
 
 /*
  * plot.c
