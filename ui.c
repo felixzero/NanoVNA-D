@@ -2015,7 +2015,7 @@ static const menuitem_t menu_sdcard_browse[] = {
 #ifdef __USE_AUTO_SAVE__
 #include "autosave.h"
 
-// ── Button ON/OFF ──────────────────────────────────────────────────────────
+// ====== Button ON/OFF ──────────────────────────────────────────────────────────
 static UI_FUNCTION_ADV_CALLBACK(menu_autosave_toggle_acb) {
   (void)data;
   if (b) {
@@ -2047,7 +2047,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_autosave_toggle_acb) {
   autosave_toggle();
 }
 
-// ── Period Button ─────────────────────────────────────────────────────────
+// ====== Period Button ========================================
 static UI_FUNCTION_ADV_CALLBACK(menu_autosave_period_acb) {
   (void)data;
   if (b) {
@@ -2061,7 +2061,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_autosave_period_acb) {
   ui_mode_keypad(KM_AUTOSAVE_PERIOD);
 }
 
-// ── Format button (generic) ──────────────────────────────────────────────
+// ====== Format button (generic) ===============================
 static UI_FUNCTION_ADV_CALLBACK(menu_autosave_fmt_acb) {
   if (b) {
     bool active = (config.autosave.format_mask & data) != 0;
@@ -2072,7 +2072,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_autosave_fmt_acb) {
   config_save();
 }
 
-// ── Submenu Auto Save ────────────────────────────────────────────────────
+// ====== Submenu Auto Save ======================================
 static const menuitem_t menu_autosave[] = {
   { MT_ADV_CALLBACK, 0,               "AUTO SAVE\nOFF",  menu_autosave_toggle_acb },
   { MT_ADV_CALLBACK, 0,               "PERIOD\n---",     menu_autosave_period_acb },
@@ -2082,6 +2082,107 @@ static const menuitem_t menu_autosave[] = {
   { MT_NEXT, 0, NULL, menu_back }
 };
 #endif /* __USE_AUTO_SAVE__ */
+
+
+#ifdef __USE_TRACE_ANALYSIS__
+/* Callbacks menu ANALYSIS */
+
+// ====== Toggle ON/OFF ==========================================
+static UI_FUNCTION_ADV_CALLBACK(menu_analysis_toggle_acb) {
+  (void)data;
+  if (b) {
+    b->icon = g_analysis.active ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    plot_printf(b->label, sizeof(b->label), "ANALYSIS\n%s",
+                g_analysis.active ? "ON" : "OFF");
+    return;
+  }
+  if (g_analysis.active)
+    analysis_stop();
+  else
+    analysis_start(g_analysis.trace_index);   // correctly calls analysis_start()
+  request_to_redraw(REDRAW_AREA);
+}
+
+// ====== Trace selection ==========================================
+static UI_FUNCTION_ADV_CALLBACK(menu_analysis_trace_acb) {
+  if (b) {
+    b->icon = (g_analysis.trace_index == (uint8_t)data)
+              ? BUTTON_ICON_GROUP_CHECKED : BUTTON_ICON_GROUP;
+    b->p1.u = data;
+    return;
+  }
+  g_analysis.trace_index = (uint8_t)data;
+  if (g_analysis.active)
+    analysis_start((uint8_t)data);  // Restarts the capture for the new trace.
+  else
+    analysis_reset();               // not yet active -> just a clean reset
+}
+
+// ====== MIN Hold toggle ==========================================
+static UI_FUNCTION_ADV_CALLBACK(menu_analysis_min_acb)
+{
+    (void)data;
+
+    if (b) {
+        b->icon = (g_analysis.show_flags & ANALYSIS_SHOW_MIN)
+                    ? BUTTON_ICON_CHECK
+                    : BUTTON_ICON_NOCHECK;
+
+        plot_printf(b->label, sizeof(b->label),
+                    "MAX HOLD\n%s",
+                    (g_analysis.show_flags & ANALYSIS_SHOW_MIN)
+                        ? "ON"
+                        : "OFF");
+        return;
+    }
+
+    g_analysis.show_flags ^= ANALYSIS_SHOW_MIN;
+
+    request_to_redraw(REDRAW_AREA);
+}
+
+// ====== MAX Hold toggle ==========================================
+static UI_FUNCTION_ADV_CALLBACK(menu_analysis_max_acb)
+{
+    (void)data;
+
+    if (b) {
+        b->icon = (g_analysis.show_flags & ANALYSIS_SHOW_MAX)
+                    ? BUTTON_ICON_CHECK
+                    : BUTTON_ICON_NOCHECK;
+
+        plot_printf(b->label, sizeof(b->label),
+                    "MIN HOLD\n%s",
+                    (g_analysis.show_flags & ANALYSIS_SHOW_MAX)
+                        ? "ON"
+                        : "OFF");
+        return;
+    }
+
+    g_analysis.show_flags ^= ANALYSIS_SHOW_MAX;
+
+    request_to_redraw(REDRAW_AREA);
+}
+
+// ====== Reset ==========================================
+static UI_FUNCTION_CALLBACK(menu_analysis_reset_cb) {
+  (void)data;
+  analysis_reset();
+}
+
+// ====== Submenu ==========================================
+static const menuitem_t menu_analysis[] = {
+  { MT_ADV_CALLBACK, 0, "ANALYSIS\nOFF",  menu_analysis_toggle_acb },
+  { MT_ADV_CALLBACK, 0, "TRACE %d",       menu_analysis_trace_acb  },
+  { MT_ADV_CALLBACK, 1, "TRACE %d",       menu_analysis_trace_acb  },
+  { MT_ADV_CALLBACK, 2, "TRACE %d",       menu_analysis_trace_acb  },
+  { MT_ADV_CALLBACK, 3, "TRACE %d",       menu_analysis_trace_acb  },
+  { MT_ADV_CALLBACK, 0, "MIN HOLD\nOFF",  menu_analysis_min_acb    },
+  { MT_ADV_CALLBACK, 0, "MAX HOLD\nOFF",  menu_analysis_max_acb    },
+  { MT_CALLBACK,     0, "RESET\nMIN/MAX", menu_analysis_reset_cb   },
+  { MT_NEXT, 0, NULL, menu_back }
+};
+#endif
 
 static const menuitem_t menu_sdcard[] = {
 #ifdef __SD_FILE_BROWSER__
@@ -2333,6 +2434,9 @@ const menuitem_t menu_display[] = {
   { MT_SUBMENU,      0, "SCALE",                               menu_scale },
   { MT_SUBMENU,      0, "TRANSFORM",                           menu_transform },
   { MT_ADV_CALLBACK, 0, "IF BANDWIDTH\n " R_LINK_COLOR "%u" S_Hz, menu_bandwidth_sel_acb },
+#ifdef __USE_TRACE_ANALYSIS__
+  { MT_SUBMENU,      0, "ANALYSIS\nMIN/MAX",                   menu_analysis },
+#endif
 #ifdef __USE_SMOOTH__
   { MT_SUBMENU,      0, "DATA SMOOTH",                         menu_smooth_count },
 #endif
