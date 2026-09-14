@@ -1,5 +1,4 @@
 NanoVNA - Very tiny handheld Vector Network Analyzer
-EDF - LAB
 ==========================================================
 [release]: https://github.com/DiSlord/NanoVNA-D/releases
 

@@ -267,7 +267,7 @@ static THD_FUNCTION(Thread1, arg)
 #endif
 //      START_PROFILE
       if ((props_mode & DOMAIN_MODE) == DOMAIN_TIME) transform_domain(mask);
-      //      STOP_PROFILE;
+//      STOP_PROFILE;
       // Prepare draw graphics, cache all lines, mark screen cells for redraw
       request_to_redraw(REDRAW_PLOT);
 #ifdef __USE_AUTO_SAVE__
