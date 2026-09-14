@@ -992,6 +992,10 @@ typedef struct marker {
   freq_t   frequency;
 } marker_t;
 
+#ifdef __USE_SD_CARD__
+#include "autosave.h"
+#endif
+
 typedef struct config {
   uint32_t magic;
   uint32_t _harmonic_freq_threshold;
@@ -1009,6 +1013,7 @@ typedef struct config {
   float    _measure_r;
   uint8_t  _band_mode;
   uint8_t  _reserved[3];
+  autosave_config_t autosave; // Auto Save configuration (8 bytes, aligned)
   uint32_t checksum;
 } config_t;
 
