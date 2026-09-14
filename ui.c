@@ -2057,21 +2057,13 @@ static UI_FUNCTION_ADV_CALLBACK(menu_autosave_fmt_acb) {
   config_save();
 }
 
-/*// ── Callback "Save Now" ────────────────────────────────────────────────────
-static void menu_autosave_save_now_cb(uint16_t data) {
-  (void)data;
-  autosave_save_now();
-}*/
-
 // ── Submenu Auto Save ────────────────────────────────────────────────────
 static const menuitem_t menu_autosave[] = {
   { MT_ADV_CALLBACK, 0,               "AUTO SAVE\nOFF",  menu_autosave_toggle_acb },
   { MT_ADV_CALLBACK, 0,               "PERIOD\n---",     menu_autosave_period_acb },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S1P, "S1P",          menu_autosave_fmt_acb    },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_S2P, "S2P",          menu_autosave_fmt_acb    },
-//  { MT_ADV_CALLBACK, AUTO_SAVE_FMT_CSV, "CSV",          menu_autosave_fmt_acb    },
   { MT_ADV_CALLBACK, AUTO_SAVE_FMT_BMP, "SCREEN",       menu_autosave_fmt_acb    },
-//  { MT_CALLBACK,     0,               "SAVE\nNOW",       menu_autosave_save_now_cb},
   { MT_NEXT, 0, NULL, menu_back }
 };
 #endif /* __USE_AUTO_SAVE__ */
@@ -2101,7 +2093,6 @@ static const menuitem_t menu_calop[] = {
   { MT_ADV_CALLBACK, CAL_LOAD,  "LOAD",  menu_calop_acb },
   { MT_ADV_CALLBACK, CAL_ISOLN, "ISOLN", menu_calop_acb },
   { MT_ADV_CALLBACK, CAL_THRU,  "THRU",  menu_calop_acb },
-//{ MT_ADV_CALLBACK, KM_EDELAY, "E-DELAY", menu_keyboard_acb },
   { MT_CALLBACK, 0,             "DONE",  menu_caldone_cb },
   { MT_CALLBACK, 1,             "DONE IN RAM",  menu_caldone_cb },
   { MT_NEXT,     0, NULL, menu_back } // next-> menu_back
@@ -3392,7 +3383,7 @@ static void keypad_draw_button(int id) {
     button.bg = LCD_MENU_COLOR;
     button.border = KEYBOARD_BUTTON_BORDER|BUTTON_BORDER_RISE;
   }
-  //if (keypads->type >= PERIOD_KEYBOARD) return;
+
   const keypad_pos_t *p = &key_pos[keypads->type];
   int x = p->x_offs + (keypads->buttons[id].pos>> 4) * p->width;
   int y = p->y_offs + (keypads->buttons[id].pos&0xF) * p->height;
@@ -3429,8 +3420,8 @@ static void keypad_draw_button(int id) {
                      y + (KPF_HEIGHT - FONT_GET_HEIGHT) / 2);
 #else
     lcd_drawchar_size(ch,
-                          x + KPF_WIDTH/2 - FONT_WIDTH + 1,
-                          y + KPF_HEIGHT/2 - FONT_GET_HEIGHT, 2);
+                     x + KPF_WIDTH/2 - FONT_WIDTH + 1,
+                     y + KPF_HEIGHT/2 - FONT_GET_HEIGHT, 2);
 #endif
   }
 }
@@ -3518,7 +3509,6 @@ static int num_keypad_click(int c, int kp_index) {
     }
     return K_DONE;
   }
-
 #ifdef __USE_RTC__
   int maxlength = (1<<keypad_mode)&((1<<KM_RTC_DATE)|(1<<KM_RTC_TIME)) ? 6 : NUMINPUT_LEN;
 #else
@@ -3610,16 +3600,6 @@ static void ui_mode_keypad(int mode) {
   draw_keypad();
   draw_numeric_area_frame();
 }
-
-/*static void keypad_click(int key) {
-  int c = keypads->buttons[key].c;  // !!! Use key + 1 (zero key index used or size define)
-  int index = strlen(kp_buf);
-  int result = keypads->type == NUM_KEYBOARD ? num_keypad_click(c, index) : txt_keypad_click(c, index);
-  if (result == K_DONE) ui_keyboard_cb(keypad_mode, NULL); // apply input done
-  // Exit loop on done or cancel
-  if (result != K_CONTINUE)
-    ui_mode_normal();
-}*/
 
 //We connect PERIOD_KEYBOARD to keypad_click
 static void keypad_click(int key) {
@@ -4055,7 +4035,7 @@ void ui_draw_autosave_indicator(void)
   // Circle visible for 1 second after the last save
   bool show_circle = (ST2MS(chVTGetSystemTime() - last_save_time) < 1000U);
 
-  // "REC" toujours affiché quand autosave est actif
+  // REC is always shown when autosave is active
   lcd_set_colors(RGB565(255, 0, 0), LCD_LOW_BAT_COLOR);
   lcd_drawstring(REC_X, REC_Y, "REC");
 

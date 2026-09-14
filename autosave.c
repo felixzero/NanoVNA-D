@@ -82,32 +82,6 @@ static bool _write_s2p(const char *basename)
   return true;
 }
 
-/*static bool _write_csv(const char *basename)
-{
-  FIL  fp;
-  char path[AUTO_SAVE_FNAME_LEN + 8];
-  plot_printf(path, sizeof(path), "%s.csv", basename);
-  if (f_open(&fp, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
-  AS_FPRINTF(&fp, "freq_hz,s11_re,s11_im,s11_db,s11_deg,"
-                  "s21_re,s21_im,s21_db,s21_deg\r\n");
-  for (uint16_t i = 0; i < sweep_points; i++) {
-    float s11re = measured[0][i][0], s11im = measured[0][i][1];
-    float s21re = measured[1][i][0], s21im = measured[1][i][1];
-    float s11mag = vna_sqrtf(s11re*s11re + s11im*s11im);
-    float s21mag = vna_sqrtf(s21re*s21re + s21im*s21im);
-    float s11db  = (s11mag > 1e-10f) ? vna_log10f_x_10(s11mag) * 2.0f : -200.0f;
-    float s21db  = (s21mag > 1e-10f) ? vna_log10f_x_10(s21mag) * 2.0f : -200.0f;
-    float s11deg = vna_atan2f(s11im, s11re) * (180.0f / VNA_PI);
-    float s21deg = vna_atan2f(s21im, s21re) * (180.0f / VNA_PI);
-    AS_FPRINTF(&fp, "%u,%.6f,%.6f,%.3f,%.3f,%.6f,%.6f,%.3f,%.3f\r\n",
-               (unsigned)getFrequency(i),
-               s11re, s11im, s11db, s11deg,
-               s21re, s21im, s21db, s21deg);
-  }
-  f_close(&fp);
-  return true;
-}*/
-
 //===========================================================================
 // PUBLIC API
 //===========================================================================
@@ -170,7 +144,6 @@ void autosave_process_if_needed(void)
   bool ok = false;
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_S1P) ok |= _write_s1p(basename);
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_S2P) ok |= _write_s2p(basename);
-  //if (AS_CFG.format_mask & AUTO_SAVE_FMT_CSV) ok |= _write_csv(basename);
   if (AS_CFG.format_mask & AUTO_SAVE_FMT_BMP) ok |= autosave_write_screenshot(basename);
 
   f_mount(NULL, "", 0);
@@ -288,7 +261,6 @@ void autosave_format_period(char *buf, uint32_t period_s)
 
 bool autosave_write_s1p(const char *b) { return _write_s1p(b); }
 bool autosave_write_s2p(const char *b) { return _write_s2p(b); }
-//bool autosave_write_csv(const char *b) { return _write_csv(b); }
 
 #endif /* __USE_AUTO_SAVE__ */
 #endif /* __USE_SD_CARD__   */
